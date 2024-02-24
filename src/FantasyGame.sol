@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
-import {IERC4626} from "@openzeppelin/contracts/token/interfaces/IERC4626.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IFantasyOracle} from "./interfaces/IFantasyOracle.sol";
 
@@ -18,7 +18,7 @@ contract fantasyGame {
     uint256 public entryCost;
 
     IERC4626 public vault;
-    SafeERC20 public token;
+    IERC20 public token;
 
     IFantasyOracle public oracle;
 
@@ -36,7 +36,7 @@ contract fantasyGame {
         gameStart = _gameStart;
         gameEnd = _gameEnd;
         entryCost = _gameCost;
-        token = SafeERC20(vault.token());
+        token = IERC20(vault.asset());
         token.approve(address(vault), type(uint256).max);
 
         // TO DO - set oracle address
@@ -48,13 +48,13 @@ contract fantasyGame {
         // Can player enter multiple times?
 
         // TO DO - check constraints i.e. player cost ??? 
-        token.safeTransferFrom(msg.sender, address(this), entryCost);
+        token.transferFrom(msg.sender, address(this), entryCost);
         playerPicks[totalEntries] = _picks;
         entryOwner[totalEntries] = msg.sender;
         nEntries[msg.sender] += 1;
 
         // Deposit into vault when player enters
-        vault.deposit(entryCost);
+        vault.deposit(entryCost, address(this));
 
         if (!noLoss) {
             totalPrizePool += entryCost;
@@ -70,7 +70,7 @@ contract fantasyGame {
 
         uint256 winningId;
 
-        vault.withdraw(vault.balanceOf(address(this)));
+        vault.withdraw(vault.balanceOf(address(this)), address(this), address(this));
 
         uint256 totalYield = token.balanceOf(address(this)) - (totalEntries * entryCost);
 
@@ -107,7 +107,7 @@ contract fantasyGame {
         require(gameEnded, "Game has not ended");
         require(msg.sender == winner, "You are not the winner");
 
-        token.safeTransfer(winner, totalPrizePool);
+        token.transfer(winner, totalPrizePool);
     }
 
     function claimBackLoss() external {
@@ -122,7 +122,7 @@ contract fantasyGame {
         }
 
         uint256 amountOut = entryCost * nLosses;
-        token.safeTransfer(msg.sender, amountOut);
+        token.transfer(msg.sender, amountOut);
 
 
     }
