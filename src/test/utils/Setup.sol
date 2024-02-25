@@ -63,7 +63,7 @@ contract Setup is ExtendedTest, IEvents {
         //vault = IERC4626();
 
         // Set asset
-        asset = ERC20(tokenAddrs["DAI"]);
+        asset = ERC20(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
 
         // Set decimals
         decimals = asset.decimals();

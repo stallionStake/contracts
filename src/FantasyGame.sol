@@ -15,7 +15,7 @@ contract fantasyGame {
     mapping(uint256 => uint256) public playerScores;
     mapping(uint256 => bool) public claimed;
 
-    uint256 nWinners;
+    uint256 public nWinners;
 
     uint256 public gameStart;
     // Should be in format of unix timestamp / seconds per day i.e. 1 unique number for each day
@@ -43,10 +43,10 @@ contract fantasyGame {
     uint256 public totalPrizePool;
     uint256 public totalEntries;
 
-    constructor(address _vault, address _oracle, uint256 _gameStart, uint256 _nDays, uint256 _gameCost, bool _noLoss) {
+    constructor(address _vault, address _oracle, uint256 _deadline, uint256 _nDays, uint256 _gameCost, bool _noLoss) {
         vault = IERC4626(_vault);
         oracle = IFantasyOracle(_oracle);
-        gameStart = _gameStart;
+        gameStart = block.timestamp + _deadline;
         nDays = _nDays;
         entryCost = _gameCost;
         token = IERC20(vault.asset());
@@ -54,7 +54,7 @@ contract fantasyGame {
         noLoss = _noLoss;
 
         // NOTE : need to confirm logic for this (possibly have as seperate input for game start oracle?)
-        gameStartOracle = _gameStart / SECONDSPERDAY;
+        gameStartOracle = gameStart / SECONDSPERDAY;
         gameEnd = gameStart + (nDays * SECONDSPERDAY);
 
     }
@@ -67,7 +67,7 @@ contract fantasyGame {
         return token.balanceOf(address(this)) + vaultBalance();
     }
 
-    function enterGame(uint256[] memory _picks) external {
+    function enterGame(uint256[5] memory _picks) external {
         require(block.timestamp < gameStart, "Game has already started");
         require(_picks.length == 5, "Must pick 5 players");
         // Can player enter multiple times?
@@ -141,7 +141,7 @@ contract fantasyGame {
         require(!claimed[_entryId], "You have already claimed");
         require(playerScores[_entryId] == winningScore, "You did not win");
 
-        token.transfer(winner, totalPrizePool / nWinners);
+        token.transfer(entryOwner[_entryId], totalPrizePool / nWinners);
     }
 
     function claimBackLoss() external {

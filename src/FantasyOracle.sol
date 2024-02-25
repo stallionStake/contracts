@@ -28,12 +28,12 @@ contract fantasyOracle {
         return fantasyScores[_playerId][_time];
     }
 
-    function addLatestScores(fantasyResult[] memory _results) external onlyAdmin {
+    function addLatestScores(uint256[] memory _playerIds, uint256[] memory _results, uint256 time) external onlyAdmin {
         // TO DO - get latest scores from API
         uint256 _n = _results.length;
 
         for (uint256 i = 0; i < _n; i++) {
-            _writeFantasyScore(_results[i].playerId, _results[i].timeId, _results[i].score);
+            _writeFantasyScore(_playerIds[i], time, _results[i]);
         }
 
     }
