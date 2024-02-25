@@ -7,6 +7,13 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {Strategy, ERC20} from "../../Strategy.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
+import {fantasyOracle} from "../../FantasyOracle.sol";
+import {fantasyGame} from "../../FantasyGame.sol";
+import {fantasyFactory} from "../../FantasyFactory.sol";
+
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+
 // Inherit the events so they can be checked if desired.
 import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
 
@@ -21,18 +28,22 @@ interface IFactory {
 contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
+    IERC4626 public vault;
     IStrategyInterface public strategy;
+
+    fantasyFactory public factory;
+    fantasyOracle public oracle;
+    fantasyGame public game;
 
     mapping(string => address) public tokenAddrs;
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
+    address public user2 = address(9);
+
     address public keeper = address(4);
     address public management = address(1);
     address public performanceFeeRecipient = address(3);
-
-    // Address of the real deployed Factory
-    address public factory;
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
@@ -48,6 +59,9 @@ contract Setup is ExtendedTest, IEvents {
     function setUp() public virtual {
         _setTokenAddrs();
 
+        // set vault 
+        //vault = IERC4626();
+
         // Set asset
         asset = ERC20(tokenAddrs["DAI"]);
 
@@ -57,11 +71,18 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        factory = strategy.FACTORY();
+        // Just use YV3 strategy for now as conforms to ERC4626
+        vault = IERC4626(address(strategy));
+
+        // Deploy oracle
+        oracle = new fantasyOracle(management);
+
+        // Create Factory
+        factory = new fantasyFactory(management, address(oracle));
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
-        vm.label(factory, "factory");
+        //vm.label(factory, "factory");
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
@@ -126,19 +147,7 @@ contract Setup is ExtendedTest, IEvents {
         deal(address(_asset), _to, balanceBefore + _amount);
     }
 
-    function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
-        address gov = IFactory(factory).governance();
 
-        // Need to make sure there is a protocol fee recipient to set the fee.
-        vm.prank(gov);
-        IFactory(factory).set_protocol_fee_recipient(gov);
-
-        vm.prank(gov);
-        IFactory(factory).set_protocol_fee_bps(_protocolFee);
-
-        vm.prank(management);
-        strategy.setPerformanceFee(_performanceFee);
-    }
 
     function _setTokenAddrs() internal {
         tokenAddrs["WBTC"] = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;

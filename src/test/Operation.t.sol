@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/console.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 
+
 contract OperationTest is Setup {
     function setUp() public virtual override {
         super.setUp();
@@ -109,7 +110,6 @@ contract OperationTest is Setup {
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
         // Set protocol fee to 0 and perf fee to 10%
-        setFees(0, 1_000);
 
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);

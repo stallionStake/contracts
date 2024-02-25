@@ -6,11 +6,15 @@ contract fantasyOracle {
 
     struct fantasyResult {
         uint256 playerId;
-        uint256 startTime;
+        uint256 timeId;
         uint256 score;
     }
 
     address public admin;
+
+    constructor(address _admin) {
+        admin = _admin;
+    }
 
     modifier onlyAdmin {
         require(msg.sender == admin, "Only admin can call this function");
@@ -19,9 +23,9 @@ contract fantasyOracle {
 
     mapping(uint256 => mapping(uint256 => uint256)) public fantasyScores;
 
-    function getFantasyScore(uint256 _playerId, uint256 _time, uint256 _endTime) external view returns (uint256) {
+    function getFantasyScore(uint256 _playerId, uint256 _time) public view returns (uint256) {
         // TO DO - get fantasy score from API
-        return 0;
+        return fantasyScores[_playerId][_time];
     }
 
     function addLatestScores(fantasyResult[] memory _results) external onlyAdmin {
@@ -29,7 +33,7 @@ contract fantasyOracle {
         uint256 _n = _results.length;
 
         for (uint256 i = 0; i < _n; i++) {
-            _writeFantasyScore(_results[i].playerId, _results[i].startTime, _results[i].score);
+            _writeFantasyScore(_results[i].playerId, _results[i].timeId, _results[i].score);
         }
 
     }
