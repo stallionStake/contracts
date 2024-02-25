@@ -117,15 +117,16 @@ contract fantasyGame {
             }
 
             playerScores[i] = score;
-
-            if (score > maxScore) {
-                maxScore = score;
-                _nWinners = 1;
-            }
             // Case of multiple winners (same score)
             if (score == maxScore) {
                 _nWinners += 1;
             }
+            
+            if (score > maxScore) {
+                maxScore = score;
+                _nWinners = 1;
+            }
+
 
         }
 

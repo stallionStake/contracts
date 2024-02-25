@@ -67,6 +67,11 @@ contract FantasyGameTest is Setup {
 
         // Check Winning Score belonds to 0th entry 
         console.log(game.winningScore(), " - Winning Score" );
+
+        console.log(game.playerScores(0), " - Player 0 Score");
+        console.log(game.playerScores(1), " - Player 1 Score");
+
+
         console.log(game.totalPrizePool(), " - Prize Pool");
         console.log(game.nWinners(), " - number of Winners");
 
