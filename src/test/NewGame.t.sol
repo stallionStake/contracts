@@ -17,6 +17,7 @@ contract FantasyGameTest is Setup {
         uint256 _gameStart = 1000;
         uint256 _nDays = 5;
         uint256 balBefore;
+        // Test no loss version
         address _newGame = factory.createGame(address(vault), _gameStart, _nDays, _amount, false);
 
         console.log("address of new game", _newGame);
@@ -45,6 +46,7 @@ contract FantasyGameTest is Setup {
         assertEq(game.totalEntries() , 2, "!totalEntries");
         assertApproxEq(game.vaultBalance(), _amount * 2, _amount / 500);
 
+        // TIME is unique for each day (i..e block.timestamp / seconds per day)
         uint256 time = game.gameStartOracle();
 
         uint256[] memory _ids = new uint256[](3);

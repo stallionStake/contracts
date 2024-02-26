@@ -6,6 +6,8 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IFantasyOracle} from "./interfaces/IFantasyOracle.sol";
 
+// NOTE : can we do NFT style game ??? 
+
 contract fantasyGame {
 
     // Vault that locked funds are deposited into 
@@ -133,6 +135,8 @@ contract fantasyGame {
         nWinners = _nWinners;
         winningScore = maxScore;
         gameEnded = true;
+
+        // EMIT EVENT OF WHO WON
 
     }
 

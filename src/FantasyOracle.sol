@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+// NOTE : can we use chainlink functions for this : https://docs.chain.link/chainlink-functions/getting-started
 
 contract fantasyOracle {
 
@@ -21,6 +22,7 @@ contract fantasyOracle {
         _;
     }
 
+    // TIME => UNIX Time stap / seconds per day
     mapping(uint256 => mapping(uint256 => uint256)) public fantasyScores;
 
     function getFantasyScore(uint256 _playerId, uint256 _time) public view returns (uint256) {
