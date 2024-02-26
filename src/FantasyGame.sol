@@ -15,7 +15,7 @@ contract fantasyGame {
     mapping(uint256 => address) public entryOwner;
     mapping(address => uint256) public nEntries;
     mapping(uint256 => uint256) public playerScores;
-    mapping(uint256 => bool) public claimed;
+    mapping(address => bool) public claimed;
 
     uint256 public nWinners;
 
@@ -30,6 +30,9 @@ contract fantasyGame {
     uint256 public winningScore;
 
     uint256 constant public SECONDSPERDAY = 86400;
+
+    // NOTE : Would this always be the same for all games or would it be custom ? 
+    uint256 public maxSalary = 50000;
 
     IERC4626 public vault;
     IERC20 public token;
@@ -69,12 +72,35 @@ contract fantasyGame {
         return token.balanceOf(address(this)) + vaultBalance();
     }
 
+    function areElementsUnique(uint256[5] memory _picks) public pure returns (bool) {
+        for (uint i = 0; i < _picks.length; i++) {
+            for (uint j = i + 1; j < _picks.length; j++) {
+                if (_picks[i] == _picks[j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function calculateSalary(uint256[5] memory _picks) public view returns(uint256) {
+        uint256 _totalSalary = 0;
+        for (uint256 i = 0; i < 5; i++) {
+            _totalSalary += oracle.getPlayerSalary(_picks[i]);
+        }
+
+        return _totalSalary;
+    }
+
     function enterGame(uint256[5] memory _picks) external {
         require(block.timestamp < gameStart, "Game has already started");
         require(_picks.length == 5, "Must pick 5 players");
-        // Can player enter multiple times?
+        // Calculate salary for players picks 
+        uint256 _salary = calculateSalary(_picks);
+        require(_salary <= maxSalary, "Team Salary above limit");
+        require(areElementsUnique(_picks), "Picks are not unique");
+        // TO DO - make sure all players picked are different 
 
-        // TO DO - check constraints i.e. player cost ??? 
         token.transferFrom(msg.sender, address(this), entryCost);
         playerPicks[totalEntries] = _picks;
         entryOwner[totalEntries] = msg.sender;
@@ -97,7 +123,7 @@ contract fantasyGame {
 
         uint256 _nWinners = 0;
 
-        vault.withdraw(vault.balanceOf(address(this)), address(this), address(this));
+        vault.withdraw(vaultBalance(), address(this), address(this));
 
         uint256 totalYield = token.balanceOf(address(this)) - (totalEntries * entryCost);
 
@@ -140,29 +166,36 @@ contract fantasyGame {
 
     }
 
+    // TO DO - clean this up ~ bit awkward passing in entry ID 
     function claimWinnings(uint256 _entryId) external {
         require(gameEnded, "Game has not ended");
         require(msg.sender == entryOwner[_entryId], "This is not your entry");
-        require(!claimed[_entryId], "You have already claimed");
+        require(!claimed[msg.sender], "You have already claimed");
         require(playerScores[_entryId] == winningScore, "You did not win");
 
-        token.transfer(entryOwner[_entryId], totalPrizePool / nWinners);
+        uint256 _amountOut = totalPrizePool / nWinners;
+
+        if (noLoss) {
+            _amountOut += entryCost * nEntries[msg.sender];
+        }        
+
+        token.transfer(entryOwner[_entryId], _amountOut);
+        claimed[msg.sender] = true;
+
     }
 
     function claimBackLoss() external {
         require(gameEnded, "Game has not ended");
         require(noLoss, "Game is not no loss");
         require(nEntries[msg.sender] > 0, "You have not entered");
+        require(!claimed[msg.sender], "You have already claimed");
 
-        uint256 nLosses = nEntries[msg.sender] - 1;
-
-        if (msg.sender == winner) {
-            nLosses -= 1;
-        }
+        uint256 nLosses = nEntries[msg.sender];
 
         uint256 amountOut = entryCost * nLosses;
         token.transfer(msg.sender, amountOut);
 
+        claimed[msg.sender] = true;
 
     }
 

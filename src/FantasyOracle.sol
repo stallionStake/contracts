@@ -22,12 +22,28 @@ contract fantasyOracle {
         _;
     }
 
+    // NOTE : do we also want to store info like player name etc on chain or just store off chain ??? 
+
     // TIME => UNIX Time stap / seconds per day
     mapping(uint256 => mapping(uint256 => uint256)) public fantasyScores;
+    mapping(uint256 => uint256) public playerSalaries;
 
     function getFantasyScore(uint256 _playerId, uint256 _time) public view returns (uint256) {
         // TO DO - get fantasy score from API
         return fantasyScores[_playerId][_time];
+    }
+
+    function getPlayerSalary(uint256 _playerId) public view returns (uint256) {
+        return playerSalaries[_playerId];
+    }
+
+    function updatePlayerSalaries(uint256[] memory _playerIds, uint256[] memory _salaries) external onlyAdmin {
+        uint256 _n = _salaries.length;
+
+        for (uint256 i = 0; i < _n; i++) {
+            playerSalaries[_playerIds[i]] = _salaries[i];
+        }
+
     }
 
     function addLatestScores(uint256[] memory _playerIds, uint256[] memory _results, uint256 time) external onlyAdmin {

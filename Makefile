@@ -8,7 +8,7 @@ size  :; forge build --sizes
 # storage inspection
 inspect :; forge inspect ${contract} storage-layout --pretty
 
-test = test_new_game
+test = test_no_loss_game
 
 FORK_URL := ${ARBI_RPC_URL} 
 
