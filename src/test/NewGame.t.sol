@@ -17,8 +17,9 @@ contract FantasyGameTest is Setup {
         uint256 _gameStart = 1000;
         uint256 _nDays = 5;
         uint256 balBefore;
+        uint256 maxEntries = 100;
         // Test no loss version
-        address _newGame = factory.createGame(address(vault), _gameStart, _nDays, _amount, false);
+        address _newGame = factory.createGame(address(vault), _gameStart, _nDays, _amount, maxEntries, false);
 
         console.log("address of new game", _newGame);
         assertTrue(address(0) != _newGame);
@@ -97,7 +98,9 @@ contract FantasyGameTest is Setup {
         uint256 _nDays = 5;
         uint256 balBefore;
         // Test no loss version
-        address _newGame = factory.createGame(address(vault), _gameStart, _nDays, _amount, true);
+        uint256 maxEntries = 100;
+        // Test no loss version
+        address _newGame = factory.createGame(address(vault), _gameStart, _nDays, _amount, maxEntries, true);
 
         console.log("address of new game", _newGame);
         assertTrue(address(0) != _newGame);
@@ -176,7 +179,7 @@ contract FantasyGameTest is Setup {
 
         balBefore = asset.balanceOf(user2);
         vm.prank(user2);
-        game.claimBackLoss();
+        game.claimBackLoss(1);
         assertEq(asset.balanceOf(user2) - balBefore,  _amount, "Incorrect Amount Out - Loser");
 
     }

@@ -6,16 +6,15 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IFantasyOracle} from "./interfaces/IFantasyOracle.sol";
 
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
 // NOTE : can we do NFT style game ??? 
 
-contract fantasyGame {
+contract fantasyGame is ERC721 {
 
     // Vault that locked funds are deposited into 
     mapping(uint256 => uint256[]) public playerPicks;
-    mapping(uint256 => address) public entryOwner;
-    mapping(address => uint256) public nEntries;
     mapping(uint256 => uint256) public playerScores;
-    mapping(address => bool) public claimed;
 
     uint256 public nWinners;
 
@@ -46,9 +45,19 @@ contract fantasyGame {
     address public winner;
 
     uint256 public totalPrizePool;
+    uint256 public totalYield;
     uint256 public totalEntries;
+    uint256 public maxEntries;
 
-    constructor(address _vault, address _oracle, uint256 _deadline, uint256 _nDays, uint256 _gameCost, bool _noLoss) {
+    constructor(
+        address _vault, 
+        address _oracle, 
+        uint256 _deadline, 
+        uint256 _nDays, 
+        uint256 _gameCost, 
+        uint256 _maxEntries, 
+        bool _noLoss
+    ) ERC721("FantasyGame", "FG") {
         vault = IERC4626(_vault);
         oracle = IFantasyOracle(_oracle);
         gameStart = block.timestamp + _deadline;
@@ -57,7 +66,7 @@ contract fantasyGame {
         token = IERC20(vault.asset());
         token.approve(address(vault), type(uint256).max);
         noLoss = _noLoss;
-
+        maxEntries = _maxEntries;
         // NOTE : need to confirm logic for this (possibly have as seperate input for game start oracle?)
         gameStartOracle = gameStart / SECONDSPERDAY;
         gameEnd = gameStart + (nDays * SECONDSPERDAY);
@@ -70,6 +79,13 @@ contract fantasyGame {
 
     function aum() public view returns (uint256) {
         return token.balanceOf(address(this)) + vaultBalance();
+    }
+
+    function getTotalYieldEarned() public view returns (uint256) {
+        if (gameEnded) {
+            return totalYield;
+        }
+        return aum() - (totalEntries * entryCost);
     }
 
     function areElementsUnique(uint256[5] memory _picks) public pure returns (bool) {
@@ -92,29 +108,50 @@ contract fantasyGame {
         return _totalSalary;
     }
 
-    function enterGame(uint256[5] memory _picks) external {
-        require(block.timestamp < gameStart, "Game has already started");
-        require(_picks.length == 5, "Must pick 5 players");
-        // Calculate salary for players picks 
+    function isGameOpen() public view returns (bool) {
+        return ((block.timestamp < gameStart) && (totalEntries < maxEntries));
+    }
+
+    function arePicksValid(uint256[5] memory _picks) public view returns (bool) {
         uint256 _salary = calculateSalary(_picks);
         require(_salary <= maxSalary, "Team Salary above limit");
-        require(areElementsUnique(_picks), "Picks are not unique");
-        // TO DO - make sure all players picked are different 
+        require(areElementsUnique(_picks), "Picks are not unique");    
+        require(_picks.length == 5, "Must pick 5 players");
+        return true;    
+    }
 
+    function enterGame(uint256[5] memory _picks) external {
+        require(isGameOpen(), "Game is not open");
+        require(arePicksValid(_picks), "Picks are not valid");
+
+        // Transfer funds & deposit into vault
         token.transferFrom(msg.sender, address(this), entryCost);
-        playerPicks[totalEntries] = _picks;
-        entryOwner[totalEntries] = msg.sender;
-        nEntries[msg.sender] += 1;
-
-        // Deposit into vault when player enters
         vault.deposit(entryCost, address(this));
+
+        // Store info on picks, owner and increment total entries
+        playerPicks[totalEntries] = _picks;
 
         if (!noLoss) {
             totalPrizePool += entryCost;
         }
 
+        // Mint NFT for entry 
+        _mint(msg.sender, totalEntries);
         totalEntries += 1;
 
+
+    }
+
+    // Can be called to calculate score for a specific entry (both during and after game has ended)
+    function calculateEntryScore(uint256 _entryId) public view returns(uint256) { 
+        uint256 score = 0;
+        for (uint256 j = 0; j < 5; j++) {
+            // TO DO - get player score from oracle
+            for (uint256 k = 0; k < nDays; k++) {
+                score += oracle.getFantasyScore(playerPicks[_entryId][j], gameStartOracle + k);
+            }
+        }
+        return score;
     }
 
     // Does this need to be permissioned i.e. any potential attack vectors with vault withdrawal ? 
@@ -125,7 +162,7 @@ contract fantasyGame {
 
         vault.withdraw(vaultBalance(), address(this), address(this));
 
-        uint256 totalYield = token.balanceOf(address(this)) - (totalEntries * entryCost);
+        totalYield = token.balanceOf(address(this)) - (totalEntries * entryCost);
 
         if (noLoss) {
             totalPrizePool = totalYield;
@@ -136,14 +173,7 @@ contract fantasyGame {
         uint256 maxScore = 0;
 
         for (uint256 i = 0; i < totalEntries; i++) {
-            uint256 score = 0;
-            for (uint256 j = 0; j < 5; j++) {
-                // TO DO - get player score from oracle
-                for (uint256 k = 0; k < nDays; k++) {
-                    score += oracle.getFantasyScore(playerPicks[i][j], gameStartOracle + k);
-                }
-            }
-
+            uint256 score = calculateEntryScore(i);
             playerScores[i] = score;
             // Case of multiple winners (same score)
             if (score == maxScore) {
@@ -154,8 +184,6 @@ contract fantasyGame {
                 maxScore = score;
                 _nWinners = 1;
             }
-
-
         }
 
         nWinners = _nWinners;
@@ -168,35 +196,62 @@ contract fantasyGame {
 
     // TO DO - clean this up ~ bit awkward passing in entry ID 
     function claimWinnings(uint256 _entryId) external {
+        require(msg.sender == ownerOf(_entryId), "This is not your entry");
+        _claimWinning(_entryId, msg.sender);
+
+    }
+
+    function _claimWinning(uint256 _entryId, address _recipient) internal {
         require(gameEnded, "Game has not ended");
-        require(msg.sender == entryOwner[_entryId], "This is not your entry");
-        require(!claimed[msg.sender], "You have already claimed");
         require(playerScores[_entryId] == winningScore, "You did not win");
 
         uint256 _amountOut = totalPrizePool / nWinners;
 
         if (noLoss) {
-            _amountOut += entryCost * nEntries[msg.sender];
+            _amountOut += entryCost;
         }        
-
-        token.transfer(entryOwner[_entryId], _amountOut);
-        claimed[msg.sender] = true;
+        token.transfer(_recipient, _amountOut);
+        _burn(_entryId);
 
     }
 
-    function claimBackLoss() external {
+    function claimBackLoss(uint256 _entryId) external {
+        require(msg.sender == ownerOf(_entryId), "This is not your entry");
+        _claimLoss(_entryId, msg.sender);
+    }
+
+    function _claimLoss(uint256 _entryId, address _recipient) internal {
         require(gameEnded, "Game has not ended");
-        require(noLoss, "Game is not no loss");
-        require(nEntries[msg.sender] > 0, "You have not entered");
-        require(!claimed[msg.sender], "You have already claimed");
 
-        uint256 nLosses = nEntries[msg.sender];
+        if (!noLoss) {
+            // DO NOTHING IF GAME IS NOT NO LOSS
+            return;
+        }
 
-        uint256 amountOut = entryCost * nLosses;
-        token.transfer(msg.sender, amountOut);
+        uint256 amountOut = entryCost;
+        token.transfer(_recipient, amountOut);
 
-        claimed[msg.sender] = true;
+        _burn(_entryId);
 
+    }
+
+    function claimMultipleEntries(uint256[] memory _entryIds) external {
+        require(gameEnded, "Game has not ended");
+        require(balanceOf(msg.sender) > 0, "You have no entries");
+
+        for (uint256 i = 0; i < _entryIds.length; i++) {
+            uint256 _entryId = _entryIds[i];
+            require(msg.sender == ownerOf(_entryId), "This is not your entry");
+            uint256 _score = playerScores[_entryId];
+
+            if (_score == winningScore) {
+                _claimWinning(_entryId, msg.sender);
+            } else {
+                if (noLoss) {
+                    _claimLoss(_entryId, msg.sender);
+                }
+            }
+        }
     }
 
 

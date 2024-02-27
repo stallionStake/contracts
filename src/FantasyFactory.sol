@@ -5,10 +5,18 @@ pragma solidity 0.8.18;
 
 import {fantasyGame} from "./FantasyGame.sol";
 
+interface IGame {
+    function isGameOpen() external view returns (bool);
+    function isGameFinished() external view returns (bool);
+}
+
 contract fantasyFactory {
 
     event GameCreated(address indexed game, address indexed vault, uint256 gameStart, uint256 nDays, uint256 gameCost);
 
+    function allGamesLength() external view returns (uint) {
+        return deployedGames.length;
+    }
 
     address[] public deployedGames;
 
@@ -29,8 +37,8 @@ contract fantasyFactory {
         oracle = _oracle;
     }
 
-    function createGame(address _vault, uint256 _gameStart, uint256 _nDays, uint256 _gameCost, bool _noLoss) external returns (address){
-        address newGame = address(new fantasyGame(_vault, oracle, _gameStart, _nDays, _gameCost, _noLoss));
+    function createGame(address _vault, uint256 _gameStart, uint256 _nDays, uint256 _gameCost, uint256 _maxEntries, bool _noLoss) external returns (address){
+        address newGame = address(new fantasyGame(_vault, oracle, _gameStart, _nDays, _gameCost, _maxEntries, _noLoss));
         deployedGames.push(newGame);
         emit GameCreated(newGame, _vault, _gameStart, _nDays, _gameCost);
         return newGame;
