@@ -40,6 +40,8 @@ contract Setup is ExtendedTest, IEvents {
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
     address public user2 = address(9);
+    address public user3 = address(8);
+    address public user4 = address(7);
 
     address public keeper = address(4);
     address public management = address(1);
