@@ -3,14 +3,14 @@ pragma solidity 0.8.18;
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IFantasyOracle} from "./interfaces/IFantasyOracle.sol";
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 // NOTE : can we do NFT style game ??? 
 
-contract fantasyGame is ERC721 {
+contract fantasyGame is ERC721, ReentrancyGuard {
 
     // Vault that locked funds are deposited into 
     mapping(uint256 => uint256[]) public playerPicks;
@@ -120,7 +120,7 @@ contract fantasyGame is ERC721 {
         return true;    
     }
 
-    function enterGame(uint256[5] memory _picks) external {
+    function enterGame(uint256[5] memory _picks) external nonReentrant {
         require(isGameOpen(), "Game is not open");
         require(arePicksValid(_picks), "Picks are not valid");
 
@@ -155,7 +155,7 @@ contract fantasyGame is ERC721 {
     }
 
     // Does this need to be permissioned i.e. any potential attack vectors with vault withdrawal ? 
-    function endGame() external {
+    function endGame() external nonReentrant {
         require(block.timestamp > gameEnd, "Game has not ended");
 
         uint256 _nWinners = 0;
@@ -195,7 +195,7 @@ contract fantasyGame is ERC721 {
     }
 
     // TO DO - clean this up ~ bit awkward passing in entry ID 
-    function claimWinnings(uint256 _entryId) external {
+    function claimWinnings(uint256 _entryId) external nonReentrant {
         require(msg.sender == ownerOf(_entryId), "This is not your entry");
         _claimWinning(_entryId, msg.sender);
 
@@ -215,7 +215,7 @@ contract fantasyGame is ERC721 {
 
     }
 
-    function claimBackLoss(uint256 _entryId) external {
+    function claimBackLoss(uint256 _entryId) external nonReentrant {
         require(msg.sender == ownerOf(_entryId), "This is not your entry");
         _claimLoss(_entryId, msg.sender);
     }
@@ -235,7 +235,7 @@ contract fantasyGame is ERC721 {
 
     }
 
-    function claimMultipleEntries(uint256[] memory _entryIds) external {
+    function claimMultipleEntries(uint256[] memory _entryIds) external nonReentrant {
         require(gameEnded, "Game has not ended");
         require(balanceOf(msg.sender) > 0, "You have no entries");
 

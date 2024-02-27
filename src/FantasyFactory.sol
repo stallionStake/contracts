@@ -37,6 +37,10 @@ contract fantasyFactory {
         oracle = _oracle;
     }
 
+    function updateAdmin(address _newAdmin) external onlyAdmin {
+        admin = _newAdmin;
+    }
+
     function createGame(address _vault, uint256 _gameStart, uint256 _nDays, uint256 _gameCost, uint256 _maxEntries, bool _noLoss) external returns (address){
         address newGame = address(new fantasyGame(_vault, oracle, _gameStart, _nDays, _gameCost, _maxEntries, _noLoss));
         deployedGames.push(newGame);

@@ -22,6 +22,9 @@ contract fantasyOracle {
         _;
     }
 
+    function updateAdmin(address _newAdmin) external onlyAdmin {
+        admin = _newAdmin;
+    }
     // NOTE : do we also want to store info like player name etc on chain or just store off chain ??? 
 
     // TIME => UNIX Time stap / seconds per day
