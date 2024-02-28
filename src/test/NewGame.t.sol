@@ -11,6 +11,34 @@ contract FantasyGameTest is Setup {
         super.setUp();
     }
 
+    function enterGame(uint256[5] memory _picks, address _user, uint256 _amount) public {
+        airdrop(asset, _user, _amount);
+
+        vm.prank(_user);
+        asset.approve(address(game), _amount);
+
+        vm.prank(_user);
+        game.enterGame(_picks);
+    }
+
+    function enterMockData() public {
+        // TIME is unique for each day (i..e block.timestamp / seconds per day)
+        uint256 time = game.gameStartOracle();
+
+        uint256[] memory _ids = new uint256[](3);
+        _ids[0] = 1; // First player's id
+        _ids[1] = 2; // Second player's id
+        _ids[2] = 3; // Third player's id
+
+        uint256[] memory _scores = new uint256[](3);
+        _scores[0] = 123; // First player's score
+        _scores[1] = 456; // Second player's score
+        _scores[2] = 789; // Third player's score        
+
+        vm.prank(management);
+        oracle.addLatestScores(_ids, _scores, time);        
+    }
+
     function test_new_game() public {
         uint256 _amount = 1000;
         // need to pass in correct time stamp data ? 
@@ -29,40 +57,13 @@ contract FantasyGameTest is Setup {
         uint256[5] memory _picks1 = [1, 2, 3, 4, uint256(5)];
         uint256[5] memory _picks2 = [6, 7, 8, 9, uint256(10)];
 
-        airdrop(asset, user, _amount);
-        airdrop(asset, user2, _amount);
-
-        vm.prank(user);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user);
-        game.enterGame(_picks1);
-
-        vm.prank(user2);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user2);
-        game.enterGame(_picks2);
+        enterGame(_picks1, user, _amount);
+        enterGame(_picks2, user2, _amount);
 
         assertEq(game.totalEntries() , 2, "!totalEntries");
         assertApproxEq(game.vaultBalance(), _amount * 2, _amount / 500);
 
-        // TIME is unique for each day (i..e block.timestamp / seconds per day)
-        uint256 time = game.gameStartOracle();
-
-        uint256[] memory _ids = new uint256[](3);
-        _ids[0] = 1; // First player's id
-        _ids[1] = 2; // Second player's id
-        _ids[2] = 3; // Third player's id
-
-        uint256[] memory _scores = new uint256[](3);
-        _scores[0] = 123; // First player's score
-        _scores[1] = 456; // Second player's score
-        _scores[2] = 789; // Third player's score        
-
-        vm.prank(management);
-        oracle.addLatestScores(_ids, _scores, time);
-
+        enterMockData();
         skip(10 days);
 
         vm.prank(management);
@@ -112,20 +113,8 @@ contract FantasyGameTest is Setup {
         uint256[5] memory _picks1 = [1, 2, 3, 4, uint256(5)];
         uint256[5] memory _picks2 = [6, 7, 8, 9, uint256(10)];
 
-        airdrop(asset, user, _amount);
-        airdrop(asset, user2, _amount);
-
-        vm.prank(user);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user);
-        game.enterGame(_picks1);
-
-        vm.prank(user2);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user2);
-        game.enterGame(_picks2);
+        enterGame(_picks1, user, _amount);
+        enterGame(_picks2, user2, _amount);
 
         assertEq(game.totalEntries() , 2, "!totalEntries");
         assertApproxEq(game.vaultBalance(), _amount * 2, _amount / 500);
@@ -136,22 +125,7 @@ contract FantasyGameTest is Setup {
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
-        // TIME is unique for each day (i..e block.timestamp / seconds per day)
-        uint256 time = game.gameStartOracle();
-
-        uint256[] memory _ids = new uint256[](3);
-        _ids[0] = 1; // First player's id
-        _ids[1] = 2; // Second player's id
-        _ids[2] = 3; // Third player's id
-
-        uint256[] memory _scores = new uint256[](3);
-        _scores[0] = 123; // First player's score
-        _scores[1] = 456; // Second player's score
-        _scores[2] = 789; // Third player's score        
-
-        vm.prank(management);
-        oracle.addLatestScores(_ids, _scores, time);
-
+        enterMockData();
         skip(10 days);
 
         // Check yield was generated 
@@ -207,20 +181,8 @@ contract FantasyGameTest is Setup {
         uint256[5] memory _picks1 = [1, 2, 3, 4, uint256(5)];
         uint256[5] memory _picks2 = [6, 7, 8, 9, uint256(10)];
 
-        airdrop(asset, user, _amount);
-        airdrop(asset, user2, _amount);
-
-        vm.prank(user);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user);
-        game.enterGame(_picks1);
-
-        vm.prank(user2);
-        asset.approve(address(game), _amount);
-
-        vm.prank(user2);
-        game.enterGame(_picks2);
+        enterGame(_picks1, user, _amount);
+        enterGame(_picks2, user2, _amount);
 
         assertEq(game.totalEntries() , 2, "!totalEntries");
         assertApproxEq(game.vaultBalance(), _amount * 2, _amount / 500);
@@ -231,21 +193,7 @@ contract FantasyGameTest is Setup {
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
-        // TIME is unique for each day (i..e block.timestamp / seconds per day)
-        uint256 time = game.gameStartOracle();
-
-        uint256[] memory _ids = new uint256[](3);
-        _ids[0] = 1; // First player's id
-        _ids[1] = 2; // Second player's id
-        _ids[2] = 3; // Third player's id
-
-        uint256[] memory _scores = new uint256[](3);
-        _scores[0] = 123; // First player's score
-        _scores[1] = 456; // Second player's score
-        _scores[2] = 789; // Third player's score        
-
-        vm.prank(management);
-        oracle.addLatestScores(_ids, _scores, time);
+        enterMockData();
 
         skip(10 days);
 
