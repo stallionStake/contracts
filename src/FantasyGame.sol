@@ -8,8 +8,6 @@ import {IFantasyOracle} from "./interfaces/IFantasyOracle.sol";
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-// NOTE : can we do NFT style game ??? 
-
 contract fantasyGame is ERC721, ReentrancyGuard {
 
     // Vault that locked funds are deposited into 

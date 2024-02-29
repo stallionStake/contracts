@@ -202,7 +202,7 @@ contract VaultSimpleERC721 is VaultBase, Ownable, ERC721 {
         createVaultSnapshot();
         require(ownerOf(tokenId) == owner, "Not the owner");
 
-        asset.transferFrom(address(this), msg.sender, tokenId);
+        asset.transferFrom(address(this), receiver, tokenId);
         _burn(tokenId);
         _totalAssets -= 1;
         requireAccountAndVaultStatusCheck(owner);

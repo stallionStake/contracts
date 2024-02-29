@@ -8,7 +8,7 @@ size  :; forge build --sizes
 # storage inspection
 inspect :; forge inspect ${contract} storage-layout --pretty
 
-test = test_new_game
+test = test_no_loss_game_w_transfers
 
 FORK_URL := ${ARBI_RPC_URL} 
 
@@ -24,5 +24,6 @@ trace-test  :; forge test -vvv --match-test $(test) --fork-url ${FORK_URL} --eth
 snapshot :; forge snapshot -vv --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
 snapshot-diff :; forge snapshot --diff -vv --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
 
+deploy :; forge script --etherscan-api-key ${ETHERSCAN_API_KEY}  --rpc-url $(TESTNET_RPC_URL) --network $(TESTNET_NETWORK) --keystore ~/.foundry/keystores/DEPLOYER --sender 0xfA4EB9AA068B3b64348f42b142E270f28E2f86EB --verify --chain-id 421614
 
 clean  :; forge clean
