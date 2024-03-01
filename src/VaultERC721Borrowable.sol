@@ -199,7 +199,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
 
         asset.transferFrom(address(this), receiver, _tokenId);
         isBorrowed[_tokenId] = true;
-        borrowedBy[_tokenId] = receiver;
+        borrowedBy[_tokenId] = msgSender;
 
         emit Borrow(msgSender, receiver, _tokenId);
 
@@ -226,7 +226,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
         createVaultSnapshot();
 
         // TO DO - transfer ERC721 
-        asset.transferFrom(receiver, address(this), _tokenId);
+        asset.transferFrom(msgSender, address(this), _tokenId);
 
         _totalAssets += 1;
 
@@ -318,7 +318,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
                 revert CollateralDisabled();
             }
 
-            _transfer(violater, msgSender, _tokenId);
+            _transfer(violator, msgSender, _tokenId);
             //_update(violator, msgSender, seizeAssets);
         } else {
             // if external assets are being seized, the EVC will take care of safety
