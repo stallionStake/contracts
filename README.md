@@ -2,7 +2,7 @@
 
 This repo will allow you to write, test and deploy Stallion Stake Smart Contracts" using [Foundry](https://book.getfoundry.sh/).
 
-For a more complete overview of how the Stallion Stake Contracts work please visit the [Stallion Stake Slides](https://github.com/yearn/tokenized-strategy).
+For a more complete overview of how the Stallion Stake works please visit the [Stallion Stake Slides]([https://github.com/yearn/tokenized-strategy](https://docs.google.com/presentation/d/1Cz48o3uYA6nUBVLMnmr4oExCU24gNNIH3uHKtMPKwgY/edit?usp=sharing)).
 
 ## How to start
 
@@ -48,16 +48,20 @@ make test
 
 Stallion Stake uses the following contracts
 
-### Fantasy Factory
+### FantasyFactory.sol
 a permissionless smart contract where any new Fantasy games can be created. For new games users simply need to specify paramaters for length of competition (in days), entry cost, if loss or no loss & the underlying ERC4626 vault used to earn yield on locked funds
 
-### Fantasy Oracle
+(Additionally the Factory has been deployed on Arbitrum Sepolia : https://sepolia.arbiscan.io/address/0xEc2638E834848717bd991BC2c5FBDd9C19EEf5Be#code ) 
+
+### FantasyOracle.sol
 A smart contract which stores a mapping of player ID & date (each date has a unique uint256 value using UNIX timestamp provided by block.timestamp / seconds per day) mapped to actual live Fantasy scores 
 
-### Fantasy Game 
+(Additionally the Oracle has been deployed on Arbitrum Sepolia : https://sepolia.arbiscan.io/address/0xEc2638E834848717bd991BC2c5FBDd9C19EEf5Be#code ) 
+
+### FantasyGame.sol 
 Any time new games are created via the Fantasy Factory a new game contract is deployed. Players can enter compeitions by providing their picks (an array of 5 uint256 values for the appropriate player ID's). When entering competitions players funds are transferred into the Game contract and deposited directly into the underlying vault chosen while also minting a unique NFT representing their entry. At the end of the game this NFT can be burned to claim winning prize (and also claim back funds in No Loss games). 
 
-## Additional Contracts
+## Additional Contracts (EVC) 
 
 Additionally as we have used ERC721 to represent entries into Stallion Stake games we have developed a modified Vault roughly following the EVC / ERC4626 standard which can be connected to [EVC](https://evc.wtf/) the contracts for this are listed below. 
 
@@ -66,6 +70,11 @@ This contract follows the pattern used in [Eulers EVC playground](https://github
 
 ### VaultERC721Borrowable.sol 
 This contract builds on top of the above contract and adds basic borrowing functionality allowing users to use other collaterals via the EVC to borrow ERC721's which have been deposited. This contract roughly follows the VaultRegularBorrowable.sol exmample in the EVC playground however for simplicity we have ommitted interest rates & assumed users can borrow at 0% rates to reduce complexity for this simplified example.  
+
+## Periphery Contracts (EVC) 
+
+### Strategy.sol
+We have utilised Yearn V3 code base in order to mimick an ERC4626 contract being used in games. 
 
 ## Testing
 
@@ -81,16 +90,17 @@ Run tests with traces (very useful)
 make trace
 ```
 
-Run specific test contract (e.g. `test/StrategyOperation.t.sol`)
+Note the primary flow of the Stallion Stake Games are tested in the file NewGame.t.sol 
+
+These tests run through the following scenarios 
+1. test_new_game : Users playing full game (not in no loss) with user claiming full prize pool at end of game in 
+2. test_no_loss_game : Users playing no loss game with yield generated on vault (utilising Yearn V3 architecture to mimic ERC4626 vault) & winner claiming yield while user claims back loss
+3. test_no_loss_game_w_transfers : Users playing no loss game with users transferring their ERC721 representing their entry mid game & new ERC721 claiming winning / losses back at the end of the game. 
+
+Run specific test contract (e.g. `test/NewGame.t.sol`)
 
 ```sh
-make test-contract contract=StrategyOperationsTest
-```
-
-Run specific test contract with traces (e.g. `test/StrategyOperation.t.sol`)
-
-```sh
-make trace-contract contract=StrategyOperationsTest
+make test-contract contract=NewGame
 ```
 
 
