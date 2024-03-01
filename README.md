@@ -15,6 +15,8 @@ For a more complete overview of how the Stallion Stake works please visit the [S
   
 3. Upon completion of game - Game calls oracle to calculate scores of players & determine winner
 4. Once game is completed users can burn NFT's to claim winning (& also entry cost for losers if no loss game) 
+
+Additionally we have developed a prototype contract which is EVC-compliant and can accept ERC-721 tokens as deposits & collateral (these contracts were a re-work of contracts in the [EVC playground](https://github.com/euler-xyz/evc-playground) ). This would potentially allow users participating in no-loss games to deposit their entries as collateral and borrow against these entries via EVC. (note we have not completed testing of these prototype contracts)
   
 ## How to start
 
