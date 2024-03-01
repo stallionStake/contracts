@@ -1,10 +1,8 @@
-# Tokenized Strategy Mix for Yearn V3 strategies
+# Smart Contracts for Stallion Stake ETH Denver Submission 
 
-This repo will allow you to write, test and deploy V3 "Tokenized Strategies" using [Foundry](https://book.getfoundry.sh/).
+This repo will allow you to write, test and deploy Stallion Stake Smart Contracts" using [Foundry](https://book.getfoundry.sh/).
 
-You will only need to override the three functions in Strategy.sol of `_deployFunds`, `_freeFunds` and `_harvestAndReport`. With the option to also override `_tend`, `_tendTrigger`, `availableDepositLimit`, `availableWithdrawLimit` and `_emegencyWithdraw` if desired.
-
-For a more complete overview of how the Tokenized Strategies work please visit the [TokenizedStrategy Repo](https://github.com/yearn/tokenized-strategy).
+For a more complete overview of how the Stallion Stake Contracts work please visit the [Stallion Stake Slides](https://github.com/yearn/tokenized-strategy).
 
 ## How to start
 
@@ -46,22 +44,17 @@ Run tests
 make test
 ```
 
-## Strategy Writing
+## Contracts
 
-For a complete guide to creating a Tokenized Strategy please visit: https://docs.yearn.fi/developers/v3/strategy_writing_guide
+Stallion Stake uses the following contracts
+
+Fantasy Factory - a permissionless smart contract where any new Fantasy games can be created. For new games users simply need to specify paramaters for length of competition (in days), entry cost, if loss or no loss & the underlying ERC4626 vault used to earn yield on locked funds
+
+Fantasy Oracle - a smart contract which stores a mapping of player ID & date (each date has a unique uint256 value using UNIX timestamp provided by block.timestamp / seconds per day) mapped to actual live Fantasy scores 
+
+Fantasy Game - any time new games are created via the Fantasy Factory a new game contract is deployed. Players can enter compeitions by providing their picks (an array of 5 uint256 values for the appropriate player ID's). When entering competitions players funds are transferred into the Game contract and deposited directly into the underlying vault chosen while also minting a unique NFT representing their entry. At the end of the game this NFT can be burned to claim winning prize (and also claim back funds in No Loss games). 
 
 ## Testing
-
-Due to the nature of the BaseStrategy utilizing an external contract for the majority of its logic, the default interface for any tokenized strategy will not allow proper testing of all functions. Testing of your Strategy should utilize the pre-built [IStrategyInterface](https://github.com/Schlagonia/tokenized-strategy-foundry-mix/blob/master/src/interfaces/IStrategyInterface.sol) to cast any deployed strategy through for testing, as seen in the Setup example. You can add any external functions that you add for your specific strategy to this interface to be able to test all functions with one variable. 
-
-Example:
-
-```solidity
-Strategy _strategy = new Strategy(asset, name);
-IStrategyInterface strategy =  IStrategyInterface(address(_strategy));
-```
-
-Due to the permissionless nature of the tokenized Strategies, all tests are written without integration with any meta vault funding it. While those tests can be added, all V3 vaults utilize the ERC-4626 standard for deposit/withdraw and accounting, so they can be plugged in easily to any number of different vaults with the same `asset.`
 
 Tests run in fork environment, you need to complete the full installation and setup to be able to run these commands.
 
@@ -87,30 +80,6 @@ Run specific test contract with traces (e.g. `test/StrategyOperation.t.sol`)
 make trace-contract contract=StrategyOperationsTest
 ```
 
-See here for some tips on testing [`Testing Tips`](https://book.getfoundry.sh/forge/tests.html)
-
-When testing on chains other than mainnet you will need to make sure a valid `CHAIN_RPC_URL` for that chain is set in your .env and that chain's specific api key is set for `ETHERSCAN_API_KEY`. You will then need to simply adjust the variable that RPC_URL is set to in the Makefile to match your chain.
-
-To update to a new API version of the TokenizeStrategy you will need to simply remove and reinstall the dependency.
-
-### Deployment
-
-#### Contract Verification
-
-Once the Strategy is fully deployed and verified, you will need to verify the TokenizedStrategy functions. To do this, navigate to the /#code page on Etherscan.
-
-1. Click on the `More Options` drop-down menu
-2. Click "is this a proxy?"
-3. Click the "Verify" button
-4. Click "Save"
-
-This should add all of the external `TokenizedStrategy` functions to the contract interface on Etherscan.
-
-See the ApeWorx [documentation](https://docs.apeworx.io/ape/stable/) and [GitHub](https://github.com/ApeWorX/ape) for more information.
-
-## CI
-
-This repo uses [GitHub Actions](.github/workflows) for CI. There are three workflows: lint, test and slither for static analysis.
 
 To enable test workflow you need to add `ETHERSCAN_API_KEY` and `ETH_RPC_URL` secrets to your repo. For more info see [GitHub Actions docs](https://docs.github.com/en/codespaces/managing-codespaces-for-your-organization/managing-encrypted-secrets-for-your-repository-and-organization-for-github-codespaces#adding-secrets-for-a-repository).
 
