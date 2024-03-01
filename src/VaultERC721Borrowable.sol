@@ -197,15 +197,11 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
 
         _increaseOwed(msgSender, 1);
 
-
         asset.transferFrom(address(this), receiver, _tokenId);
         isBorrowed[_tokenId] = true;
         borrowedBy[_tokenId] = receiver;
 
         emit Borrow(msgSender, receiver, _tokenId);
-
-        //SafeERC20.safeTransfer(IERC20(asset()), receiver, assets);
-        // TO DO - transfer ERC721 
 
         _totalAssets -= 1;
 
@@ -308,6 +304,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
 
         uint256 seizeAssets = _calculateAssetsToSeize(violator, collateral, _tokenId);
 
+        // Do Liquidation One At a time 
         _decreaseOwed(violator, 1);
         _increaseOwed(msgSender, 1);
 
@@ -321,7 +318,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
                 revert CollateralDisabled();
             }
 
-            // TO DO - transfer NFT's ???
+            _transfer(violater, msgSender, _tokenId);
             //_update(violator, msgSender, seizeAssets);
         } else {
             // if external assets are being seized, the EVC will take care of safety
@@ -393,12 +390,12 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     /// @dev This function is used during the liquidation process to determine the amount of collateral to seize.
     /// @param violator The address of the violator's account.
     /// @param collateral The address of the collateral to be seized.
-    /// @param repayAssets The amount of assets the liquidator is attempting to repay.
+    /// @param _tokenId The token ID liquidator is attempting to repay.
     /// @return The amount of collateral shares to seize from the violator's account.
     function _calculateAssetsToSeize(
         address violator,
         address collateral,
-        uint256 repayAssets
+        uint256 _tokenId
     ) internal view returns (uint256) {
         // do not allow to seize the assets for collateral without a collateral factor.
         // note that a user can enable any address as collateral, even if it's not recognized
@@ -412,7 +409,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
             _calculateLiabilityAndCollateral(violator, getCollaterals(violator), true);
 
         // trying to repay more than the violator owes
-        if (repayAssets > liabilityAssets) {
+        if (liabilityAssets == 0) {
             revert RepayAssetsExceeded();
         }
 
@@ -433,7 +430,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
             / (TARGET_HEALTH_FACTOR - (cf * (100 + liquidationIncentive)) / 100);
 
         // get the desired value of repay assets
-        uint256 repayValue = priceOracle.getQuote(repayAssets, address(asset), address(referenceAsset));
+        uint256 repayValue = priceOracle.getQuote(_tokenId, address(asset), address(referenceAsset));
 
         // check if the liquidator is not trying to repay too much.
         // this prevents the liquidator from liquidating entire position if not necessary.
