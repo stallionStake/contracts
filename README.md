@@ -102,10 +102,10 @@ These tests run through the following scenarios
 2. test_no_loss_game : Users playing no loss game with yield generated on vault (utilising Yearn V3 architecture to mimic ERC4626 vault) & winner claiming yield while user claims back loss
 3. test_no_loss_game_w_transfers : Users playing no loss game with users transferring their ERC721 representing their entry mid game & new ERC721 claiming winning / losses back at the end of the game. 
 
-Run specific test contract (e.g. `test/NewGame.t.sol`)
+Run specific test contract (e.g. `src/FantasyGame.sol`)
 
 ```sh
-make test-contract contract=NewGame
+make test-contract contract=FantasyGame
 ```
 
 
