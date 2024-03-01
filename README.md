@@ -48,11 +48,24 @@ make test
 
 Stallion Stake uses the following contracts
 
-Fantasy Factory - a permissionless smart contract where any new Fantasy games can be created. For new games users simply need to specify paramaters for length of competition (in days), entry cost, if loss or no loss & the underlying ERC4626 vault used to earn yield on locked funds
+# Fantasy Factory
+a permissionless smart contract where any new Fantasy games can be created. For new games users simply need to specify paramaters for length of competition (in days), entry cost, if loss or no loss & the underlying ERC4626 vault used to earn yield on locked funds
 
-Fantasy Oracle - a smart contract which stores a mapping of player ID & date (each date has a unique uint256 value using UNIX timestamp provided by block.timestamp / seconds per day) mapped to actual live Fantasy scores 
+# Fantasy Oracle
+A smart contract which stores a mapping of player ID & date (each date has a unique uint256 value using UNIX timestamp provided by block.timestamp / seconds per day) mapped to actual live Fantasy scores 
 
-Fantasy Game - any time new games are created via the Fantasy Factory a new game contract is deployed. Players can enter compeitions by providing their picks (an array of 5 uint256 values for the appropriate player ID's). When entering competitions players funds are transferred into the Game contract and deposited directly into the underlying vault chosen while also minting a unique NFT representing their entry. At the end of the game this NFT can be burned to claim winning prize (and also claim back funds in No Loss games). 
+# Fantasy Game 
+Any time new games are created via the Fantasy Factory a new game contract is deployed. Players can enter compeitions by providing their picks (an array of 5 uint256 values for the appropriate player ID's). When entering competitions players funds are transferred into the Game contract and deposited directly into the underlying vault chosen while also minting a unique NFT representing their entry. At the end of the game this NFT can be burned to claim winning prize (and also claim back funds in No Loss games). 
+
+# Additional Contracts
+
+Additionally as we have used ERC721 to represent entries into Stallion Stake games we have developed a modified Vault roughly following the EVC / ERC4626 standard which can be connected to [EVC](https://evc.wtf/) the contracts for this are listed below. 
+
+# VaultSimpleERC721.sol 
+This contract follows the pattern used in [Eulers EVC playground](https://github.com/euler-xyz/evc-playground) for their OZ Vault Simple implementation with slight modifications to be compatible with ERC721 primarily by instead minting ERC20 token representing deposits a new ERC721 is minted which maps directly to the underlying ERC721 token id 
+
+# VaultERC721Borrowable.sol 
+This contract builds on top of the above contract and adds basic borrowing functionality allowing users to use other collaterals via the EVC to borrow ERC721's which have been deposited. This contract roughly follows the VaultRegularBorrowable.sol exmample in the EVC playground however for simplicity we have ommitted interest rates & assumed users can borrow at 0% rates to reduce complexity for this simplified example.  
 
 ## Testing
 
