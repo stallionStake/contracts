@@ -1,9 +1,21 @@
-# Smart Contracts for Stallion Stake ETH Denver Submission 
+# Smart Contracts for Stallion Stake (ETH Denver Submission)
 
 This repo will allow you to write, test and deploy Stallion Stake Smart Contracts" using [Foundry](https://book.getfoundry.sh/).
 
 For a more complete overview of how the Stallion Stake works please visit the [Stallion Stake Slides]([https://github.com/yearn/tokenized-strategy](https://docs.google.com/presentation/d/1Cz48o3uYA6nUBVLMnmr4oExCU24gNNIH3uHKtMPKwgY/edit?usp=sharing)).
 
+### Stallion Stake Flow 
+
+1. New games created via Factory contract -> users can specify start date, game duration, underlying ERC4626 used to earn yield on assets, entry cost & if game is no-loss or not
+2. Users enter game via newly created game contract via Factory when entering game the following happens
+   - Check picks are valid & entry is before submission deadline 
+   - Transfers ERC20 entry cost from user & deposits directly to vault
+   - Maps users picks to entry ID
+   - Mints ERC721 to user tracking their entry (this allows users to potentially transfer / sell entries mid game on secondary market) 
+  
+3. Upon completion of game - Game calls oracle to calculate scores of players & determine winner
+4. Once game is completed users can burn NFT's to claim winning (& also entry cost for losers if no loss game) 
+  
 ## How to start
 
 ### Requirements
@@ -62,7 +74,7 @@ This contract follows the pattern used in [Eulers EVC playground](https://github
 ### VaultERC721Borrowable.sol 
 This contract builds on top of the above contract and adds basic borrowing functionality allowing users to use other collaterals via the EVC to borrow ERC721's which have been deposited. This contract roughly follows the VaultRegularBorrowable.sol exmample in the EVC playground however for simplicity we have ommitted interest rates & assumed users can borrow at 0% rates to reduce complexity for this simplified example.  
 
-## Periphery Contracts (EVC) 
+## Periphery Contracts
 
 ### Strategy.sol
 We have utilised Yearn V3 code base in order to mimick an ERC4626 contract being used in games. 
