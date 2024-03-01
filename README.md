@@ -10,16 +10,7 @@ For a more complete overview of how the Stallion Stake works please visit the [S
 
 First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
 NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
-
-### Fork this repository
-
-```sh
-git clone --recursive https://github.com/user/tokenized-strategy-foundry-mix
-
-cd tokenized-strategy-foundry-mix
-
-yarn
-```
+Once installed you can clone this repository and compile contracts & run relevant tests 
 
 ### Set your environment Variables
 
