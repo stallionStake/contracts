@@ -11,25 +11,23 @@ import {IPriceOracle } from "./interfaces/IPriceOracle.sol";
 
 
 contract VaultERC721Borrowable is VaultSimpleERC721 {
-    IIRM public irm;
+
     IPriceOracle public priceOracle;
     using Math for uint256;
-
-    uint256 internal _mathRoundingCeil = 1;
 
     uint256 internal constant COLLATERAL_FACTOR_SCALE = 100;
     uint256 internal constant MAX_LIQUIDATION_INCENTIVE = 20;
     uint256 internal constant TARGET_HEALTH_FACTOR = 125;
     uint256 internal constant ONE = 1e27;
 
+    // tracks if a specific erc721 token is borrowed
+    mapping(uint256 => bool) public isBorrowed;
+    mapping(uint256 => address) public borrowedBy;
+
     uint256 public borrowCap;
     uint256 internal _totalBorrowed;
-    uint96 internal interestRate;
-    uint256 internal lastInterestUpdate;
-    uint256 internal interestAccumulator;
 
     mapping(address account => uint256 assets) internal owed;
-    mapping(address account => uint256) internal userInterestAccumulator;
     mapping(address asset => uint256) internal collateralFactor;
 
     event BorrowCapSet(uint256 newBorrowCap);
@@ -55,10 +53,8 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
         IERC721 _asset,
         string memory name,
         string memory symbol,
-        IIRM _irm,
         IPriceOracle _priceOracle
     ) VaultSimpleERC721(_evc, _asset, name, symbol) {
-        irm = _irm;
         priceOracle = _priceOracle;
     }
 
@@ -68,12 +64,6 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     function setBorrowCap(uint256 newBorrowCap) external onlyOwner {
         borrowCap = newBorrowCap;
         emit BorrowCapSet(newBorrowCap);
-    }
-
-    /// @notice Sets the IRM of the vault.
-    /// @param _irm The new IRM.
-    function setIRM(IIRM _irm) external onlyOwner {
-        irm = _irm;
     }
 
     /// @notice Sets the reference asset of the vault.
@@ -99,17 +89,6 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
         collateralFactor[_asset] = _collateralFactor;
     }
 
-    /// @notice Gets the current interest rate of the vault.
-    /// @dev Reverts if the vault status check is deferred because the interest rate is calculated in the
-    /// checkVaultStatus().
-    /// @return The current interest rate.
-    function getInterestRate() external view returns (uint256) {
-        if (isVaultStatusCheckDeferred(address(this))) {
-            revert VaultStatusCheckDeferred();
-        }
-
-        return interestRate;
-    }
 
     /// @notice Gets the collateral factor of an asset.
     /// @param _asset The asset.
@@ -121,8 +100,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     /// @notice Returns the total borrowed assets from the vault.
     /// @return The total borrowed assets from the vault.
     function totalBorrowed() public view virtual returns (uint256) {
-        (uint256 currentTotalBorrowed,,) = _accrueInterestCalculate();
-        return currentTotalBorrowed;
+        return _totalBorrowed;
     }
 
     /// @notice Returns the debt of an account.
@@ -155,22 +133,13 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     }
 
     function doCreateVaultSnapshot() internal virtual override returns (bytes memory) {
-        (uint256 currentTotalBorrowed,) = _accrueInterest();
-
         // make total assets and total borrows snapshot:
-        return abi.encode(_totalAssets, currentTotalBorrowed);
+        return abi.encode(_totalAssets, _totalBorrowed);
     }
 
     function doCheckVaultStatus(bytes memory oldSnapshot) internal virtual override {
         // sanity check in case the snapshot hasn't been taken
         if (oldSnapshot.length == 0) revert SnapshotNotTaken();
-
-        // use the vault status hook to update the interest rate (it should happen only once per transaction).
-        // EVC.forgiveVaultStatus check should never be used for this vault, otherwise the interest rate will not be
-        // updated.
-        // this contract doesn't implement the interest accrual, so this function does nothing. needed for the sake of
-        // inheritance
-        _updateInterest();
 
         // validate the vault state here:
         (uint256 initialAssets, uint256 initialBorrowed) = abi.decode(oldSnapshot, (uint256, uint256));
@@ -214,35 +183,39 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     }
 
     /// @notice Borrows assets.
-    /// @param assets The amount of assets to borrow.
     /// @param receiver The receiver of the assets.
-    function borrow(uint256 assets, address receiver) external callThroughEVC nonReentrant {
+    function borrow(uint256 _tokenId, address receiver) external callThroughEVC nonReentrant {
         address msgSender = _msgSenderForBorrow();
 
         createVaultSnapshot();
 
-        require(assets != 0, "ZERO_ASSETS");
+        require(!isBorrowed[_tokenId], "ALREADY_BORROWED");
+        require(asset.ownerOf(_tokenId) == address(this));
 
         // users might input an EVC subaccount, in which case we want to send tokens to the owner
         receiver = _getAccountOwner(receiver);
 
-        _increaseOwed(msgSender, assets);
+        _increaseOwed(msgSender, 1);
 
-        emit Borrow(msgSender, receiver, assets);
+
+        asset.transferFrom(address(this), receiver, _tokenId);
+        isBorrowed[_tokenId] = true;
+        borrowedBy[_tokenId] = receiver;
+
+        emit Borrow(msgSender, receiver, _tokenId);
 
         //SafeERC20.safeTransfer(IERC20(asset()), receiver, assets);
         // TO DO - transfer ERC721 
 
-        _totalAssets -= assets;
+        _totalAssets -= 1;
 
         requireAccountAndVaultStatusCheck(msgSender);
     }
 
     /// @notice Repays a debt.
     /// @dev This function transfers the specified amount of assets from the caller to the vault.
-    /// @param assets The amount of assets to repay.
     /// @param receiver The receiver of the repayment.
-    function repay(uint256 assets, address receiver) external callThroughEVC nonReentrant {
+    function repay(uint256 _tokenId, address receiver) external callThroughEVC nonReentrant {
         address msgSender = _msgSender();
 
         // sanity check: the receiver must be under control of the EVC. otherwise, we allowed to disable this vault as
@@ -251,17 +224,22 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
             revert ControllerDisabled();
         }
 
+        require(isBorrowed[_tokenId], "NOT_BORROWED");
+        require(borrowedBy[_tokenId] == receiver, "NOT_BORROWER");
+        
         createVaultSnapshot();
 
-        require(assets != 0, "ZERO_ASSETS");
-
         // TO DO - transfer ERC721 
+        asset.transferFrom(receiver, address(this), _tokenId);
 
-        _totalAssets += assets;
+        _totalAssets += 1;
 
-        _decreaseOwed(receiver, assets);
+        isBorrowed[_tokenId] = false;
+        borrowedBy[_tokenId] = address(0);
 
-        emit Repay(msgSender, receiver, assets);
+        _decreaseOwed(receiver, 1);
+
+        emit Repay(msgSender, receiver, _tokenId);
 
         requireAccountAndVaultStatusCheck(address(0));
     }
@@ -270,9 +248,8 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     /// @dev This function decreases the debt of one account and increases the debt of another.
     /// @dev Despite the lack of asset transfers, this function emits Repay and Borrow events.
     /// @param from The account to pull the debt from.
-    /// @param assets The amount of debt to pull.
     /// @return A boolean indicating whether the operation was successful.
-    function pullDebt(address from, uint256 assets) external callThroughEVC nonReentrant returns (bool) {
+    function pullDebt(address from, uint256 _tokenId) external callThroughEVC nonReentrant returns (bool) {
         address msgSender = _msgSenderForBorrow();
 
         // sanity check: the account from which the debt is pulled must be under control of the EVC.
@@ -283,14 +260,15 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
 
         createVaultSnapshot();
 
-        require(assets != 0, "ZERO_AMOUNT");
         require(msgSender != from, "SELF_DEBT_PULL");
 
-        _decreaseOwed(from, assets);
-        _increaseOwed(msgSender, assets);
+        _decreaseOwed(from, 1);
+        _increaseOwed(msgSender, 1);
 
-        emit Repay(msgSender, from, assets);
-        emit Borrow(msgSender, msgSender, assets);
+        borrowedBy[_tokenId] = msgSender;
+
+        emit Repay(msgSender, from, _tokenId);
+        emit Borrow(msgSender, msgSender, _tokenId);
 
         requireAccountAndVaultStatusCheck(msgSender);
 
@@ -300,11 +278,10 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     /// @notice Liquidates a violator account.
     /// @param violator The violator account.
     /// @param collateral The collateral of the violator.
-    /// @param repayAssets The assets to repay.
     function liquidate(
         address violator,
         address collateral,
-        uint256 repayAssets
+        uint256 _tokenId
     ) external callThroughEVC nonReentrant {
         address msgSender = _msgSenderForBorrow();
 
@@ -312,7 +289,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
             revert SelfLiquidation();
         }
 
-        if (repayAssets == 0) {
+        if (asset.ownerOf(_tokenId) != msg.sender) {
             revert RepayAssetsInsufficient();
         }
 
@@ -329,13 +306,13 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
 
         createVaultSnapshot();
 
-        uint256 seizeAssets = _calculateAssetsToSeize(violator, collateral, repayAssets);
+        uint256 seizeAssets = _calculateAssetsToSeize(violator, collateral, _tokenId);
 
-        _decreaseOwed(violator, repayAssets);
-        _increaseOwed(msgSender, repayAssets);
+        _decreaseOwed(violator, 1);
+        _increaseOwed(msgSender, 1);
 
-        emit Repay(msgSender, violator, repayAssets);
-        emit Borrow(msgSender, msgSender, repayAssets);
+        emit Repay(msgSender, violator, _tokenId);
+        emit Borrow(msgSender, msgSender, _tokenId);
 
         if (collateral == address(this)) {
             // if the liquidator tries to seize the assets from this vault,
@@ -487,7 +464,6 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     function _increaseOwed(address account, uint256 assets) internal virtual {
         owed[account] = _debtOf(account) + assets;
         _totalBorrowed += assets;
-        userInterestAccumulator[account] = interestAccumulator;
     }
 
     /// @notice Decreases the owed amount of an account.
@@ -500,7 +476,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
         uint256 __totalBorrowed = _totalBorrowed;
         _totalBorrowed = __totalBorrowed >= assets ? __totalBorrowed - assets : 0;
 
-        userInterestAccumulator[account] = interestAccumulator;
+
     }
 
     /// @notice Returns the debt of an account.
@@ -510,64 +486,7 @@ contract VaultERC721Borrowable is VaultSimpleERC721 {
     function _debtOf(address account) internal view virtual returns (uint256) {
         uint256 debt = owed[account];
 
-        if (debt == 0) return 0;
-
-        (, uint256 currentInterestAccumulator,) = _accrueInterestCalculate();
-        return 0;
-        // TO DO - Fix 
-        //return debt.mulDiv(currentInterestAccumulator, userInterestAccumulator[account], _mathRoundingCeil);
+        return debt;
     }
-
-    /// @notice Accrues interest.
-    /// @return The current values of total borrowed and interest accumulator.
-    function _accrueInterest() internal virtual returns (uint256, uint256) {
-        (uint256 currentTotalBorrowed, uint256 currentInterestAccumulator, bool shouldUpdate) =
-            _accrueInterestCalculate();
-
-        if (shouldUpdate) {
-            _totalBorrowed = currentTotalBorrowed;
-            interestAccumulator = currentInterestAccumulator;
-            lastInterestUpdate = block.timestamp;
-        }
-
-        return (currentTotalBorrowed, currentInterestAccumulator);
-    }
-
-    /// @notice Calculates the accrued interest.
-    /// @return The total borrowed amount, the interest accumulator and a boolean value that indicates whether the data
-    /// should be updated.
-    function _accrueInterestCalculate() internal view virtual returns (uint256, uint256, bool) {
-        uint256 timeElapsed = block.timestamp - lastInterestUpdate;
-        uint256 oldTotalBorrowed = _totalBorrowed;
-        uint256 oldInterestAccumulator = interestAccumulator;
-
-        if (timeElapsed == 0) {
-            return (oldTotalBorrowed, oldInterestAccumulator, false);
-        }
-
-        uint256 newInterestAccumulator =
-            (FixedPointMathLib.rpow(uint256(interestRate) + ONE, timeElapsed, ONE) * oldInterestAccumulator) / ONE;
-
-        uint256 newTotalBorrowed = 1;
-            // TO DO - Fix this 
-            //oldTotalBorrowed.mulDiv(newInterestAccumulator, oldInterestAccumulator, _mathRoundingCeil);
-
-        return (newTotalBorrowed, newInterestAccumulator, true);
-    }
-
-    /// @notice Updates the interest rate.
-    function _updateInterest() internal virtual {
-        uint256 borrowed = _totalBorrowed;
-        uint256 poolAssets = _totalAssets + borrowed;
-
-        uint32 utilisation;
-        if (poolAssets != 0) {
-            utilisation = uint32((borrowed * type(uint32).max) / poolAssets);
-        }
-
-        interestRate = irm.computeInterestRate(address(this), address(asset), utilisation);
-    }
-
-
 
 }
